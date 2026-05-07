@@ -1,23 +1,20 @@
-from core.llm import call_llm
-from config.settings import SCRIPT_MODEL
+from .base import BaseAgent
 
+class ScriptAgent(BaseAgent):
+    """剧本编撰Agent：基于创意方案生成完整分场剧本"""
+    
+    def run(self, creative_plan: str) -> str:
+        prompt = f"""
+你是专业的世界级短视频编剧。
+根据以下创意方案，生成完整的分场剧本：
+{creative_plan}
 
-def script_agent(state):
+要求：
+1. 分场编写，每场包含：场景编号、场景描述、台词、动作
+2. 节奏紧凑，适合短视频观看
+3. 语言口语化，符合人物身份
+4. 总时长控制在创意方案建议的范围内
 
-    prompt = """
-你是影视剧本分析AI、世界顶级导演、摄影师。
-输出必须是JSON结构：
-{
-  "theme": "",
-  "characters": [],
-  "scenes": []
-}
+输出格式清晰，每场用【第X场】开头。
 """
-
-    result = call_llm(prompt, state.input_text, SCRIPT_MODEL)
-
-    # 写入全局状态
-    state.script_result = result
-    state.logs.append("script_agent完成")
-
-    return state
+        return self.call_llm(prompt)

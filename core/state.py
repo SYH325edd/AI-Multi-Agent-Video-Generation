@@ -1,31 +1,35 @@
-from typing import Dict, Any, List
+from typing import Dict, Optional
 
-
-class GlobalState:
-    """
-    多Agent共享数据中心
-    所有AI的输出都写进这里
-    """
-
+class WorkflowState:
+    """管理整个创作流程的状态和生成内容"""
     def __init__(self):
+        # 流程状态：pending / ready / done / wait_confirm
+        self.flow: Dict[str, str] = {
+            "creative": "wait_confirm",
+            "script": "pending",
+            "character": "pending",
+            "storyboard": "pending",
+            "unify": "pending",
+            "film": "pending"
+        }
+        # 存储每个环节生成的内容
+        self.content: Dict[str, Optional[str]] = {
+            "creative": None,
+            "script": None,
+            "character": None,
+            "storyboard": None,
+            "unify": None,
+            "film": None
+        }
 
-        # 用户输入
-        self.input_text: str = ""
+    def update_state(self, step: str, status: str):
+        self.flow[step] = status
 
-        # 剧本分析结果
-        self.script_result: Dict[str, Any] = {}
+    def set_content(self, step: str, content: str):
+        self.content[step] = content
 
-        # 分镜结果
-        self.storyboard: List[Dict[str, Any]] = []
+    def get_content(self, step: str) -> Optional[str]:
+        return self.content.get(step)
 
-        # prompt结果
-        self.prompts: List[str] = []
-
-        # 视觉结果
-        self.images: List[str] = []
-
-        # 日志（非常重要）
-        self.logs: List[str] = []
-
-        # 当前状态
-        self.status: str = "idle"
+# 全局单例状态
+workflow_state = WorkflowState()

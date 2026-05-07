@@ -1,37 +1,670 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from agents.script_agent import script_agent
-from agents.storyboard_agent import storyboard_agent
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多Agent AI影视系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f0f7ff;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
 
-app = FastAPI()
+        /* 左侧导航栏 */
+        .sidebar {
+            width: 200px;
+            background-color: #ffffff;
+            padding: 20px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            padding: 0 20px 30px;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #1677ff;
+        }
+        .sidebar-menu {
+            list-style: none;
+        }
+        .sidebar-menu li a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #666;
+            text-decoration: none;
+            gap: 10px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .sidebar-menu li a:hover,
+        .sidebar-menu li a.active {
+            background-color: #e6f4ff;
+            color: #1677ff;
+        }
+        .sidebar-status {
+            margin-top: 30px;
+            padding: 0 20px;
+            font-size: 12px;
+            color: #999;
+        }
 
-# 允许跨域请求（必须加，否则前端无法调用）
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .header-tabs {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+        .header-tabs span {
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+        }
+        .header-tabs span.active {
+            color: #1677ff;
+            font-weight: bold;
+            border-bottom: 2px solid #1677ff;
+            padding-bottom: 5px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .action-icon {
+            font-size: 18px;
+            color: #666;
+            cursor: pointer;
+        }
 
-# 1. 测试接口
-@app.post("/test")
-def test_run():
-    return {"status": "ok", "message": "API is running"}
+        /* 工作流区域 */
+        .workflow-section {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .section-views button {
+            background-color: #e6f4ff;
+            color: #1677ff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .agent-grid {
+            display: flex;
+            gap: 16px;
+            justify-content: space-between;
+        }
+        .agent-card {
+            width: 15%;
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fafafa;
+            transition: all 0.3s ease;
+        }
+        .agent-card:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .agent-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            background-color: #e6f4ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1677ff;
+            font-weight: bold;
+        }
+        .agent-name {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .agent-status {
+            font-size: 12px;
+            color: #52c41a;
+            margin-bottom: 8px;
+        }
+        .agent-output {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+        .agent-btn {
+            font-size: 12px;
+            color: #1677ff;
+            cursor: pointer;
+        }
 
-# 2. 获取Agent进度接口（给前端用）
-@app.get("/api/agent/progress")
-def get_agent_progress():
-    # 这里可以根据你的实际Agent运行情况，返回真实进度
-    return {"progress": 75}
+        /* 下方内容区 */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        .content-card {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .card-tabs {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .card-tabs span {
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+        }
+        .card-tabs span.active {
+            color: #1677ff;
+            font-weight: bold;
+            border-bottom: 2px solid #1677ff;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            color: #666;
+        }
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background-color: #e6f4ff;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #1677ff;
+        }
+        .status-done { color: #52c41a; }
+        .status-running { color: #1677ff; }
+        .status-pending { color: #fa8c16; }
 
-# 3. 获取Agent状态接口（给前端用）
-@app.get("/api/agent/status")
-def get_agent_status():
-    return {
-        "script_agent": "done",
-        "storyboard_agent": "running",
-        "qa_agent": "pending",
-        "visual_agent": "pending"
-    }
+        /* 素材库 */
+        .material-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .material-item {
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .material-item:hover {
+            transform: translateY(-3px) scale(1.05);
+        }
+        .material-thumb {
+            width: 100%;
+            height: 80px;
+            background-color: #f0f0f0;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .material-name {
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* 右侧边栏 */
+        .right-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .preview-card, .info-card, .log-card {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .preview-area {
+            width: 100%;
+            height: 150px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .preview-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .info-label {
+            color: #666;
+        }
+        .log-item {
+            font-size: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .log-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #1677ff;
+        }
+        .log-time {
+            color: #999;
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧导航栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span>🎬</span>
+                <span>多Agent AI影视系统</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#" class="active">项目概览</a></li>
+                <li><a href="#">智能编剧</a></li>
+                <li><a href="#">角色设计</a></li>
+                <li><a href="#">分镜生成</a></li>
+                <li><a href="#">AI拍摄助手</a></li>
+                <li><a href="#">后期制作</a></li>
+                <li><a href="#">音频生成</a></li>
+                <li><a href="#">字幕生成</a></li>
+                <li><a href="#">成片预览</a></li>
+                <li><a href="#">数据看板</a></li>
+                <li><a href="#">系统管理</a></li>
+            </ul>
+            <div class="sidebar-status">
+                <p>系统状态</p>
+                <p>所有Agent 12/12 正常</p>
+                <p>算力使用率 62%</p>
+                <p>存储使用率 1.2TB / 2TB</p>
+                <p>今日任务数 128 / 200</p>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main">
+            <div class="main-header">
+                <div class="project-selector">
+                    <select style="border: none; background: transparent; font-size: 16px; font-weight: bold;">
+                        <option>当前项目：科幻短片《星际回响》</option>
+                    </select>
+                    <span style="color: #52c41a; font-size: 12px;">● 进行中</span>
+                </div>
+                <div class="header-actions">
+                    <span class="action-icon">⚙️</span>
+                    <span class="action-icon">📚</span>
+                    <span class="action-icon">📈</span>
+                    <span class="action-icon">🔧</span>
+                    <span class="action-icon">👤 导演</span>
+                </div>
+            </div>
+
+            <div class="header-tabs">
+                <span class="active">项目概览</span>
+                <span>剧本开发</span>
+                <span>分镜设计</span>
+                <span>拍摄制作</span>
+                <span>后期制作</span>
+                <span>成片管理</span>
+            </div>
+
+            <!-- 多Agent工作流 -->
+            <div class="workflow-section">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">多Agent工作流</div>
+                        <p style="font-size: 12px; color: #999; margin-top: 5px;">基于多个专业AI Agent协同工作，打造高效的影视创作流程</p>
+                    </div>
+                    <div class="section-views">
+                        <button>工作流视图</button>
+                        <button style="margin-left: 10px;">拓扑视图</button>
+                    </div>
+                </div>
+                <div class="agent-grid">
+                    <div class="agent-card">
+                        <div class="agent-icon">💡</div>
+                        <div class="agent-name">创意策划Agent</div>
+                        <div class="agent-status status-done">已完成</div>
+                        <div class="agent-output">输出：创意大纲</div>
+                        <div class="agent-btn">查看详情</div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">✍️</div>
+                        <div class="agent-name">编剧Agent</div>
+                        <div class="agent-status status-done">已完成</div>
+                        <div class="agent-output">输出：完整剧本</div>
+                        <div class="agent-btn">查看详情</div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">👤</div>
+                        <div class="agent-name">角色设计Agent</div>
+                        <div class="agent-status status-done">已完成</div>
+                        <div class="agent-output">输出：角色设定集</div>
+                        <div class="agent-btn">查看详情</div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">🎬</div>
+                        <div class="agent-name">分镜设计Agent</div>
+                        <div class="agent-status status-running">进行中 75%</div>
+                        <div class="agent-output">输出：分镜脚本</div>
+                        <div class="agent-btn">查看详情</div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">🎥</div>
+                        <div class="agent-name">拍摄指导Agent</div>
+                        <div class="agent-status status-pending">待启动</div>
+                        <div class="agent-output">输出：拍摄方案</div>
+                        <div class="agent-btn">查看详情</div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">🎨</div>
+                        <div class="agent-name">后期制作Agent</div>
+                        <div class="agent-status status-pending">待启动</div>
+                        <div class="agent-output">输出：成片</div>
+                        <div class="agent-btn">查看详情</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-grid">
+                <!-- 左侧任务中心+素材库 -->
+                <div>
+                    <div class="content-card">
+                        <div class="card-tabs">
+                            <span class="active">任务中心</span>
+                            <span>素材库</span>
+                            <span>协作成员</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>任务名称</th>
+                                    <th>所属Agent</th>
+                                    <th>状态</th>
+                                    <th>进度</th>
+                                    <th>开始时间</th>
+                                    <th>预计完成时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>生成第6场分镜：宇宙飞船降落</td>
+                                    <td>分镜设计Agent</td>
+                                    <td><span class="status-running">进行中</span></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 75%"></div>
+                                        </div>
+                                    </td>
+                                    <td>05-21 09:30</td>
+                                    <td>05-21 11:30</td>
+                                    <td><span class="agent-btn">查看详情</span></td>
+                                </tr>
+                                <tr>
+                                    <td>角色设计：主角宇航员</td>
+                                    <td>角色设计Agent</td>
+                                    <td><span class="status-done">已完成</span></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 100%"></div>
+                                        </div>
+                                    </td>
+                                    <td>05-21 08:30</td>
+                                    <td>05-21 09:15</td>
+                                    <td><span class="agent-btn">查看详情</span></td>
+                                </tr>
+                                <tr>
+                                    <td>编写剧本第3幕</td>
+                                    <td>编剧Agent</td>
+                                    <td><span class="status-done">已完成</span></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 100%"></div>
+                                        </div>
+                                    </td>
+                                    <td>05-21 07:00</td>
+                                    <td>05-21 08:30</td>
+                                    <td><span class="agent-btn">查看详情</span></td>
+                                </tr>
+                                <tr>
+                                    <td>分析科幻题材趋势</td>
+                                    <td>创意策划Agent</td>
+                                    <td><span class="status-done">已完成</span></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 100%"></div>
+                                        </div>
+                                    </td>
+                                    <td>05-21 06:30</td>
+                                    <td>05-21 07:00</td>
+                                    <td><span class="agent-btn">查看详情</span></td>
+                                </tr>
+                                <tr>
+                                    <td>生成场景概念图：外星基地</td>
+                                    <td>分镜设计Agent</td>
+                                    <td><span class="status-pending">待处理</span></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 0%"></div>
+                                        </div>
+                                    </td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td><span class="agent-btn">开始任务</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 素材库 -->
+                    <div class="content-card" style="margin-top: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div class="card-tabs">
+                                <span class="active">全部</span>
+                                <span>剧本</span>
+                                <span>角色</span>
+                                <span>场景</span>
+                                <span>分镜</span>
+                                <span>音频</span>
+                                <span>视频</span>
+                                <span>其他</span>
+                            </div>
+                            <div>
+                                <button style="background-color: #e6f4ff; color: #1677ff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; margin-right: 10px;">新建文件夹</button>
+                                <button style="background-color: #1677ff; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px;">上传素材</button>
+                            </div>
+                        </div>
+                        <div class="material-grid">
+                            <div class="material-item">
+                                <div class="material-thumb">待上传</div>
+                                <div class="material-name">剧本_完整稿.pdf</div>
+                            </div>
+                            <div class="material-item">
+                                <div class="material-thumb">待生成</div>
+                                <div class="material-name">主角_宇航员.png</div>
+                            </div>
+                            <div class="material-item">
+                                <div class="material-thumb">待生成</div>
+                                <div class="material-name">外星基地_概念图.jpg</div>
+                            </div>
+                            <div class="material-item">
+                                <div class="material-thumb">待生成</div>
+                                <div class="material-name">分镜_第6话.png</div>
+                            </div>
+                            <div class="material-item">
+                                <div class="material-thumb">待上传</div>
+                                <div class="material-name">主题音乐.mp3</div>
+                            </div>
+                            <div class="material-item">
+                                <div class="material-thumb">待上传</div>
+                                <div class="material-name">预告片片段.mp4</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧边栏 -->
+                <div class="right-sidebar">
+                    <!-- 项目预览 -->
+                    <div class="preview-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span style="font-size: 14px; font-weight: bold;">项目预览</span>
+                            <span style="font-size: 12px; color: #1677ff;">编辑预览</span>
+                        </div>
+                        <div class="preview-area">
+                            <div>待生成成片预览</div>
+                        </div>
+                        <div class="preview-controls">
+                            <button class="play-btn" disabled>▶</button>
+                            <span class="time-text">00:00:08 / 00:01:30</span>
+                        </div>
+                    </div>
+
+                    <!-- 项目信息 -->
+                    <div class="info-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span style="font-size: 14px; font-weight: bold;">项目信息</span>
+                            <span style="font-size: 12px; color: #1677ff;">编辑</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">项目名称：</span>
+                            <span>科幻短片《星际回响》</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">项目类型：</span>
+                            <span>科幻 / 冒险 / 短片</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">时长：</span>
+                            <span>01:30</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">分辨率：</span>
+                            <span>3840x2160 (4K)</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">创建时间：</span>
+                            <span>2024-05-20 14:30:00</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">更新时间：</span>
+                            <span>2024-05-21 10:15:30</span>
+                        </div>
+                        <div class="info-item" style="display:block; margin-top:10px;">
+                            <span class="info-label">项目描述：</span>
+                            <span style="display:block; margin-top:5px; line-height:1.5;">在遥远的未来，人类发现了来自宇宙深处的神秘信号，勇敢的宇航员踏上了探索未知的旅程...</span>
+                        </div>
+                    </div>
+
+                    <!-- Agent运行日志 -->
+                    <div class="log-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span style="font-size: 14px; font-weight: bold;">Agent运行日志</span>
+                            <span style="font-size: 12px; color: #1677ff;">更多日志</span>
+                        </div>
+                        <div class="log-item">
+                            <div class="log-dot"></div>
+                            <span>分镜设计Agent 开始生成第6场分镜</span>
+                            <span class="log-time">10:15:30</span>
+                        </div>
+                        <div class="log-item">
+                            <div class="log-dot" style="background-color: #52c41a;"></div>
+                            <span>角色设计Agent 已完成所有角色设计</span>
+                            <span class="log-time">10:12:45</span>
+                        </div>
+                        <div class="log-item">
+                            <div class="log-dot" style="background-color: #52c41a;"></div>
+                            <span>编剧Agent 已完成剧本创作</span>
+                            <span class="log-time">09:45:22</span>
+                        </div>
+                        <div class="log-item">
+                            <div class="log-dot" style="background-color: #52c41a;"></div>
+                            <span>创意策划Agent 已生成创意大纲</span>
+                            <span class="log-time">09:30:15</span>
+                        </div>
+                        <div class="log-item">
+                            <div class="log-dot" style="background-color: #999;"></div>
+                            <span>系统 启动项目工作流</span>
+                            <span class="log-time">09:30:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
